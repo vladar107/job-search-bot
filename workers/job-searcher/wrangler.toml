@@ -3,7 +3,7 @@ main = "workers/job-searcher/index.ts"
 compatibility_date = "2024-01-01"
 
 kv_namespaces = [
-  { binding = "JOB_KV", id = "" } # ID will be filled by Wrangler
+  { binding = "JOB_KV", id = "90356d9790fa43aab3fe46f7d4cc2006" }
 ]
 
 [env.production]
@@ -12,4 +12,4 @@ route = ""
 
 [[env.production.kv_namespaces]]
 binding = "JOB_KV"
-id = "" # ID will be filled by Wrangler
+id = "90356d9790fa43aab3fe46f7d4cc2006"

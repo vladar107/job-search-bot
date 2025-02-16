@@ -12,29 +12,30 @@ jobs:
     deploy-infra:
         runs-on: ubuntu-latest
         steps:
-            -   name: Checkout repository
-                uses: actions/checkout@v4
+            - name: Checkout repository
+              uses: actions/checkout@v4
 
-            -   name: Set up Node.js
-                uses: actions/setup-node@v4
-                with:
-                    node-version: '22'
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
 
-            -   name: Install dependencies
-                run: npm install
+            - name: Install dependencies
+              run: npm install
 
-            -   name: Install Pulumi
-                uses: pulumi/actions@v4
-                with:
-                    pulumi-version: latest
+            - name: Install Pulumi
+              uses: pulumi/actions@v4
+              with:
+                  pulumi-version: latest
 
-            -   name: Configure Pulumi
-                run: |
-                    pulumi login --local
-                    pulumi stack ls
-                    pulumi stack select prod
-                    pulumi config set cloudflareAccountId ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-                    pulumi config set cloudflare:apiToken ${{ secrets.CLOUDFLARE_API_TOKEN }} --secret
+            - name: Configure Pulumi
+              working-directory: infra
+              run: |
+                  pulumi login --local
+                  pulumi stack select prod
+                  pulumi config set cloudflareAccountId ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+                  pulumi config set cloudflare:apiToken ${{ secrets.CLOUDFLARE_API_TOKEN }} --secret
 
-            -   name: Deploy Infrastructure
-                run: pulumi up --yes
+            - name: Deploy Infrastructure
+              working-directory: infra
+              run: pulumi up --yes
