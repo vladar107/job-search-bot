@@ -1,0 +1,8 @@
+name: job-search-bot
+runtime: nodejs
+config:
+    cloudflareAccountId:
+        description: "Cloudflare Account ID"
+    cloudflare:apiToken:
+        description: "Cloudflare API Token"
+        secret: true
