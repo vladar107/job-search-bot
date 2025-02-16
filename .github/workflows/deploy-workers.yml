@@ -21,13 +21,14 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
+        working-directory: workers
         run: npm install
 
       - name: Deploy Job Searcher Worker
         working-directory: workers/job-searcher
         run: |
           echo "${{ secrets.API_KEY }}" | npx wrangler secret put API_KEY
-          npx wrangler deploy
+          npx wrangler deploy index.ts
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -36,7 +37,7 @@ jobs:
         working-directory: workers/telegram-bot
         run: |
           echo "${{ secrets.TELEGRAM_BOT_TOKEN }}" | npx wrangler secret put TELEGRAM_BOT_TOKEN
-          npx wrangler deploy
+          npx wrangler deploy index.ts
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

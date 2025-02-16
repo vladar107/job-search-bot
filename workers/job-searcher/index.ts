@@ -3,7 +3,7 @@ import { ExecutionContext } from '@cloudflare/workers-types';
 
 interface Env {
   JOB_KV: KVNamespace;
-  API_KEY: string;  // Added comment: API key for securing endpoints
+  API_KEY: string; 
 }
 
 interface JobSource {
