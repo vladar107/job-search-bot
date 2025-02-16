@@ -3,6 +3,8 @@ runtime: nodejs
 config:
     cloudflareAccountId:
         description: "Cloudflare Account ID"
+        value: ""
     cloudflare:apiToken:
         description: "Cloudflare API Token"
         secret: true
+        value: ""
