@@ -27,6 +27,7 @@ jobs:
       - name: Deploy Job Searcher Worker
         working-directory: workers/job-searcher
         run: |
+          npx wrangler secret delete API_KEY || true
           echo "${{ secrets.API_KEY }}" | npx wrangler secret put API_KEY
           npx wrangler deploy index.ts
         env:
@@ -36,6 +37,7 @@ jobs:
       - name: Deploy Telegram Bot Worker
         working-directory: workers/telegram-bot
         run: |
+          npx wrangler secret delete TELEGRAM_BOT_TOKEN || true
           echo "${{ secrets.TELEGRAM_BOT_TOKEN }}" | npx wrangler secret put TELEGRAM_BOT_TOKEN
           npx wrangler deploy index.ts
         env:

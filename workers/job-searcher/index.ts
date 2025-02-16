@@ -9,7 +9,7 @@ interface Env {
 interface JobSource {
   id: string;
   name: string;
-  type: 'greenhouse' | 'lever';  // Updated: removed 'workday' as we're not using it yet
+  type: 'greenhouse' | 'lever' | 'workday';  
   baseUrl: string;
   companyId: string;
 }
