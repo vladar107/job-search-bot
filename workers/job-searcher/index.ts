@@ -3,13 +3,13 @@ import { ExecutionContext } from '@cloudflare/workers-types';
 
 interface Env {
   JOB_KV: KVNamespace;
-  API_KEY: string;
+  API_KEY: string;  // Added comment: API key for securing endpoints
 }
 
 interface JobSource {
   id: string;
   name: string;
-  type: 'greenhouse' | 'lever' | 'workday';
+  type: 'greenhouse' | 'lever';  // Updated: removed 'workday' as we're not using it yet
   baseUrl: string;
   companyId: string;
 }
