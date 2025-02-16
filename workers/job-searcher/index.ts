@@ -31,6 +31,11 @@ interface Job {
   profession: string | null;
 }
 
+interface LastCheck {
+  lastJobId: string;
+  lastCheckTime: string;
+}
+
 // Helper functions for KV operations
 async function getSources(kv: KVNamespace): Promise<JobSource[]> {
   const sourcesData = await kv.get('config:sources');
@@ -42,20 +47,60 @@ async function getProfessions(kv: KVNamespace): Promise<Profession[]> {
   return professionsData ? JSON.parse(professionsData) : [];
 }
 
-async function fetchGreenhouseJobs(source: JobSource): Promise<Job[]> {
-  const response = await fetch(`${source.baseUrl}/boards/${source.companyId}/jobs`);
+async function getLastCheck(kv: KVNamespace, sourceId: string): Promise<LastCheck | null> {
+  const data = await kv.get(`lastcheck:${sourceId}`);
+  return data ? JSON.parse(data) : null;
+}
+
+async function updateLastCheck(kv: KVNamespace, sourceId: string, jobId: string) {
+  const lastCheck: LastCheck = {
+    lastJobId: jobId,
+    lastCheckTime: new Date().toISOString()
+  };
+  await kv.put(`lastcheck:${sourceId}`, JSON.stringify(lastCheck));
+}
+
+async function fetchGreenhouseJobs(source: JobSource, lastJobId: string | null): Promise<Job[]> {
+  // If no lastJobId, get today's jobs
+  const today = new Date().toISOString().split('T')[0];
+  const updatedAfter = lastJobId ? undefined : today;
+  
+  const url = new URL(`${source.baseUrl}/boards/${source.companyId}/jobs`);
+  if (updatedAfter) {
+    url.searchParams.append('updated_after', updatedAfter);
+  }
+  
+  const response = await fetch(url.toString());
   const jobs = await response.json();
   
-  return jobs.map((job: any) => ({
-    id: `${source.id}-${job.id}`,
-    title: job.title,
-    company: source.name,
-    location: job.location.name,
-    url: job.absolute_url,
-    posted_at: job.updated_at,
-    source: source.id,
-    profession: null
-  }));
+  let foundLastJob = false;
+  const newJobs: Job[] = [];
+  
+  for (const job of jobs) {
+    // If we have a lastJobId and haven't found it yet, keep looking
+    if (lastJobId) {
+      if (job.id === lastJobId) {
+        foundLastJob = true;
+        continue;
+      }
+      if (!foundLastJob) {
+        continue;
+      }
+    }
+    
+    newJobs.push({
+      id: `${source.id}-${job.id}`,
+      title: job.title,
+      company: source.name,
+      location: job.location.name,
+      url: job.absolute_url,
+      posted_at: job.updated_at,
+      source: source.id,
+      profession: null
+    });
+  }
+  
+  return newJobs;
 }
 
 async function fetchLeverJobs(source: JobSource): Promise<Job[]> {
@@ -74,10 +119,10 @@ async function fetchLeverJobs(source: JobSource): Promise<Job[]> {
   }));
 }
 
-async function fetchJobs(source: JobSource): Promise<Job[]> {
+async function fetchJobs(source: JobSource, lastJobId: string | null): Promise<Job[]> {
   switch (source.type) {
     case 'greenhouse':
-      return fetchGreenhouseJobs(source);
+      return fetchGreenhouseJobs(source, lastJobId);
     case 'lever':
       return fetchLeverJobs(source);
     default:
@@ -125,29 +170,39 @@ export default {
       
       for (const source of sources) {
         try {
-          const jobs = await fetchJobs(source);
+          // Get last check information
+          const lastCheck = await getLastCheck(env.JOB_KV, source.id);
+          const lastJobId = lastCheck?.lastJobId ?? null;
           
-          for (const job of jobs) {
-            // Filter for Netherlands
-            if (!job.location.toLowerCase().includes('netherlands')) {
-              continue;
-            }
+          const jobs = await fetchJobs(source, lastJobId);
+          
+          if (jobs.length > 0) {
+            // Update last check with the newest job ID
+            const newestJob = jobs[0]; // Assuming jobs are sorted newest first
+            await updateLastCheck(env.JOB_KV, source.id, newestJob.id.split('-')[1]); // Store original job ID
             
-            // Match profession
-            job.profession = matchProfession(job.title, professions);
-            if (!job.profession) {
-              continue;
-            }
-            
-            // Store job if it's new
-            const jobKey = `job:${job.id}`;
-            const existing = await env.JOB_KV.get(jobKey);
-            
-            if (!existing) {
-              await env.JOB_KV.put(jobKey, JSON.stringify(job));
-              await env.JOB_KV.put(`new:${jobKey}`, JSON.stringify(job), {
-                expirationTtl: 60 * 60 * 2 // 2 hours
-              });
+            for (const job of jobs) {
+              // Filter for Netherlands
+              if (!job.location.toLowerCase().includes('netherlands')) {
+                continue;
+              }
+              
+              // Match profession
+              job.profession = matchProfession(job.title, professions);
+              if (!job.profession) {
+                continue;
+              }
+              
+              // Store job
+              const jobKey = `job:${job.id}`;
+              const existing = await env.JOB_KV.get(jobKey);
+              
+              if (!existing) {
+                await env.JOB_KV.put(jobKey, JSON.stringify(job));
+                await env.JOB_KV.put(`new:${jobKey}`, JSON.stringify(job), {
+                  expirationTtl: 60 * 60 * 2 // 2 hours
+                });
+              }
             }
           }
         } catch (error) {
