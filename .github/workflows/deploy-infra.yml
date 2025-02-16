@@ -31,6 +31,7 @@ jobs:
             -   name: Configure Pulumi
                 run: |
                     pulumi login --local
+                    pulumi stack ls
                     pulumi stack select prod
                     pulumi config set cloudflareAccountId ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
                     pulumi config set cloudflare:apiToken ${{ secrets.CLOUDFLARE_API_TOKEN }} --secret
