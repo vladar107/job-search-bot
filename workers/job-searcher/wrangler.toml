@@ -9,6 +9,9 @@ kv_namespaces = [
 [observability.logs]
 enabled = true
 
+[vars]
+API_KEY = ""
+
 [env.production]
 name = "job-searcher-worker"
 route = ""

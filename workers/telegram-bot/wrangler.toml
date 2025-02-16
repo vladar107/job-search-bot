@@ -9,6 +9,9 @@ kv_namespaces = [
 [observability.logs]
 enabled = true
 
+[vars]
+TELEGRAM_BOT_TOKEN = ""
+
 [env.production]
 name = "telegram-bot-worker"
 route = ""
