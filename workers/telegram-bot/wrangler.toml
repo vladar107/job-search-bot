@@ -1,13 +1,13 @@
 name = "telegram-bot-worker"
 main = "workers/telegram-bot/index.ts"
-compatibility_date = "2024-01-01"
+compatibility_date = "2025-02-16"
 
 kv_namespaces = [
   { binding = "JOB_KV", id = "90356d9790fa43aab3fe46f7d4cc2006" }
 ]
 
-[vars]
-TELEGRAM_BOT_TOKEN = "" # Will be set during deployment
+[observability.logs]
+enabled = true
 
 [env.production]
 name = "telegram-bot-worker"

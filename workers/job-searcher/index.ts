@@ -38,8 +38,33 @@ interface LastCheck {
 
 // Helper functions for KV operations
 async function getSources(kv: KVNamespace): Promise<JobSource[]> {
+  console.log({
+    level: 'info',
+    message: 'Fetching sources from KV',
+    timestamp: new Date().toISOString()
+  });
+
   const sourcesData = await kv.get('config:sources');
-  return sourcesData ? JSON.parse(sourcesData) : [];
+  if (!sourcesData) {
+    console.log({
+      level: 'warn',
+      message: 'No sources found in KV',
+      timestamp: new Date().toISOString()
+    });
+    return [];
+  }
+
+  const data = JSON.parse(sourcesData);
+  const sources = data.sources; // Extract the sources array from the wrapper object
+
+  console.log({
+    level: 'info',
+    message: 'Sources fetched successfully',
+    sourcesCount: sources.length,
+    timestamp: new Date().toISOString()
+  });
+
+  return sources;
 }
 
 async function getProfessions(kv: KVNamespace): Promise<Profession[]> {
@@ -61,6 +86,14 @@ async function updateLastCheck(kv: KVNamespace, sourceId: string, jobId: string)
 }
 
 async function fetchGreenhouseJobs(source: JobSource, lastJobId: string | null): Promise<Job[]> {
+  console.log({
+    level: 'info',
+    message: 'Fetching Greenhouse jobs',
+    source: source.id,
+    lastJobId,
+    timestamp: new Date().toISOString()
+  });
+
   // If no lastJobId, get today's jobs
   const today = new Date().toISOString().split('T')[0];
   const updatedAfter = lastJobId ? undefined : today;
@@ -100,10 +133,25 @@ async function fetchGreenhouseJobs(source: JobSource, lastJobId: string | null):
     });
   }
   
+  console.log({
+    level: 'info',
+    message: 'Greenhouse jobs fetched',
+    source: source.id,
+    jobsCount: newJobs.length,
+    timestamp: new Date().toISOString()
+  });
+  
   return newJobs;
 }
 
 async function fetchLeverJobs(source: JobSource): Promise<Job[]> {
+  console.log({
+    level: 'info',
+    message: 'Fetching Lever jobs',
+    source: source.id,
+    timestamp: new Date().toISOString()
+  });
+
   const response = await fetch(`${source.baseUrl}/v0/postings/${source.companyId}`);
   const jobs = await response.json();
   
@@ -154,96 +202,269 @@ function authenticateRequest(request: Request, env: Env): boolean {
   return token === env.API_KEY;
 }
 
+// Helper function for error responses
+function errorResponse(message: string, status: number = 400) {
+  console.log({
+    level: 'error',
+    message,
+    status,
+    timestamp: new Date().toISOString()
+  });
+  
+  return new Response(
+    JSON.stringify({ 
+      error: message,
+      status 
+    }), 
+    { 
+      status,
+      headers: { 'Content-Type': 'application/json' }
+    }
+  );
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const requestId = crypto.randomUUID();
+    console.log({
+      level: 'info',
+      message: 'Request received',
+      requestId,
+      method: request.method,
+      path: new URL(request.url).pathname,
+      timestamp: new Date().toISOString()
+    });
+
     // Authenticate all requests first
     if (!authenticateRequest(request, env)) {
-      return new Response('Unauthorized', { status: 401 });
+      console.log({
+        level: 'warn',
+        message: 'Authentication failed',
+        requestId,
+        timestamp: new Date().toISOString()
+      });
+      return errorResponse('Unauthorized', 401);
     }
 
-    const url = new URL(request.url);
-    
-    // Endpoint to trigger job search
-    if (url.pathname === '/search' && request.method === 'POST') {
-      const sources = await getSources(env.JOB_KV);
-      const professions = await getProfessions(env.JOB_KV);
+    try {
+      const url = new URL(request.url);
       
-      for (const source of sources) {
+      // Admin endpoint to configure professions
+      if (url.pathname === '/admin/professions' && request.method === 'PUT') {
         try {
-          // Get last check information
-          const lastCheck = await getLastCheck(env.JOB_KV, source.id);
-          const lastJobId = lastCheck?.lastJobId ?? null;
+          const body = await request.json();
           
-          const jobs = await fetchJobs(source, lastJobId);
+          if (!body.professions || !Array.isArray(body.professions)) {
+            return errorResponse('Invalid request body: professions array is required');
+          }
+
+          console.log({
+            level: 'info',
+            message: 'Updating professions',
+            requestId,
+            professionsCount: body.professions.length,
+            timestamp: new Date().toISOString()
+          });
+
+          await env.JOB_KV.put('config:professions', JSON.stringify(body.professions));
           
-          if (jobs.length > 0) {
-            // Update last check with the newest job ID
-            const newestJob = jobs[0]; // Assuming jobs are sorted newest first
-            await updateLastCheck(env.JOB_KV, source.id, newestJob.id.split('-')[1]); // Store original job ID
-            
-            for (const job of jobs) {
-              // Filter for Netherlands
-              if (!job.location.toLowerCase().includes('netherlands')) {
-                continue;
-              }
+          console.log({
+            level: 'info',
+            message: 'Professions updated successfully',
+            requestId,
+            timestamp: new Date().toISOString()
+          });
+
+          return new Response(
+            JSON.stringify({ message: 'Professions updated successfully' }), 
+            { 
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          );
+        } catch (e) {
+          console.log({
+            level: 'error',
+            message: 'Error parsing profession data',
+            requestId,
+            error: e.message,
+            timestamp: new Date().toISOString()
+          });
+          return errorResponse('Invalid JSON in request body');
+        }
+      }
+
+      // Admin endpoint to configure sources
+      if (url.pathname === '/admin/sources' && request.method === 'PUT') {
+        try {
+          const body = await request.json();
+          
+          console.log({
+            level: 'info',
+            message: 'Updating sources',
+            requestId,
+            sourcesCount: body.sources?.length,
+            timestamp: new Date().toISOString()
+          });
+
+          if (!body.sources || !Array.isArray(body.sources)) {
+            return errorResponse('Invalid request body: sources array is required');
+          }
+
+          await env.JOB_KV.put('config:sources', JSON.stringify(body.sources));
+          
+          console.log({
+            level: 'info',
+            message: 'Sources updated successfully',
+            requestId,
+            timestamp: new Date().toISOString()
+          });
+
+          return new Response(
+            JSON.stringify({ message: 'Sources updated successfully' }), 
+            { 
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          );
+        } catch (e) {
+          console.log({
+            level: 'error',
+            message: 'Error parsing source data',
+            requestId,
+            error: e.message,
+            timestamp: new Date().toISOString()
+          });
+          return errorResponse('Invalid JSON in request body');
+        }
+      }
+
+      // Endpoint to trigger job search
+      if (url.pathname === '/search' && request.method === 'POST') {
+        try {
+          console.log({
+            level: 'info',
+            message: 'Starting job search',
+            requestId,
+            timestamp: new Date().toISOString()
+          });
+
+          const sources = await getSources(env.JOB_KV);
+          const professions = await getProfessions(env.JOB_KV);
+          
+          let totalJobsFound = 0;
+          let totalJobsStored = 0;
+
+          for (const source of sources) {
+            try {
+              const lastCheck = await getLastCheck(env.JOB_KV, source.id);
+              const lastJobId = lastCheck?.lastJobId;
               
-              // Match profession
-              job.profession = matchProfession(job.title, professions);
-              if (!job.profession) {
-                continue;
-              }
+              console.log({
+                level: 'info',
+                message: 'Fetching jobs for source',
+                requestId,
+                source: source.id,
+                lastJobId,
+                timestamp: new Date().toISOString()
+              });
+
+              const jobs = await fetchJobs(source, lastJobId);
+              totalJobsFound += jobs.length;
               
-              // Store job
-              const jobKey = `job:${job.id}`;
-              const existing = await env.JOB_KV.get(jobKey);
-              
-              if (!existing) {
-                await env.JOB_KV.put(jobKey, JSON.stringify(job));
-                await env.JOB_KV.put(`new:${jobKey}`, JSON.stringify(job), {
-                  expirationTtl: 60 * 60 * 2 // 2 hours
-                });
+              if (jobs.length > 0) {
+                const newestJob = jobs[0];
+                await updateLastCheck(env.JOB_KV, source.id, newestJob.id.split('-')[1]);
+                
+                for (const job of jobs) {
+                  if (job.location.toLowerCase().includes('netherlands')) {
+                    job.profession = matchProfession(job.title, professions);
+                    if (job.profession) {
+                      const jobKey = `job:${job.id}`;
+                      const existing = await env.JOB_KV.get(jobKey);
+                      
+                      if (!existing) {
+                        totalJobsStored++;
+                        await env.JOB_KV.put(jobKey, JSON.stringify(job));
+                        await env.JOB_KV.put(`new:${jobKey}`, JSON.stringify(job), {
+                          expirationTtl: 60 * 60 * 2
+                        });
+                      }
+                    }
+                  }
+                }
               }
+            } catch (error) {
+              console.log({
+                level: 'error',
+                message: 'Error processing source',
+                requestId,
+                source: source.id,
+                error: error.message,
+                timestamp: new Date().toISOString()
+              });
             }
           }
+          
+          console.log({
+            level: 'info',
+            message: 'Job search completed',
+            requestId,
+            totalJobsFound,
+            totalJobsStored,
+            timestamp: new Date().toISOString()
+          });
+
+          return new Response(
+            JSON.stringify({ 
+              message: 'Job search completed',
+              totalJobsFound,
+              totalJobsStored
+            }), 
+            { 
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          );
         } catch (error) {
-          console.error(`Error fetching jobs from ${source.name}:`, error);
-        }
-      }
-      
-      return new Response('Job search completed', { status: 200 });
-    }
-
-    // Endpoint to get new jobs
-    if (url.pathname === '/new-jobs' && request.method === 'GET') {
-      const newJobs: Job[] = [];
-      const kvList = await env.JOB_KV.list({ prefix: 'new:' });
-      
-      for (const key of kvList.keys) {
-        const jobData = await env.JOB_KV.get(key.name);
-        if (jobData) {
-          newJobs.push(JSON.parse(jobData));
+          console.log({
+            level: 'error',
+            message: 'Search error',
+            requestId,
+            error: error.message,
+            timestamp: new Date().toISOString()
+          });
+          return errorResponse('Error during job search: ' + error.message, 500);
         }
       }
 
-      return new Response(JSON.stringify(newJobs), {
-        headers: { 'Content-Type': 'application/json' }
+      // Endpoint to get new jobs
+      if (url.pathname === '/new-jobs' && request.method === 'GET') {
+        const newJobs: Job[] = [];
+        const kvList = await env.JOB_KV.list({ prefix: 'new:' });
+        
+        for (const key of kvList.keys) {
+          const jobData = await env.JOB_KV.get(key.name);
+          if (jobData) {
+            newJobs.push(JSON.parse(jobData));
+          }
+        }
+
+        return new Response(JSON.stringify(newJobs), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      return errorResponse('Not Found', 404);
+    } catch (error) {
+      console.log({
+        level: 'error',
+        message: 'Server error',
+        requestId,
+        error: error.message,
+        timestamp: new Date().toISOString()
       });
+      return errorResponse('Internal Server Error', 500);
     }
-
-    // Admin endpoint to configure sources
-    if (url.pathname === '/admin/sources' && request.method === 'PUT') {
-      const sources = await request.json();
-      await env.JOB_KV.put('config:sources', JSON.stringify(sources));
-      return new Response('Sources updated', { status: 200 });
-    }
-
-    // Admin endpoint to configure professions
-    if (url.pathname === '/admin/professions' && request.method === 'PUT') {
-      const professions = await request.json();
-      await env.JOB_KV.put('config:professions', JSON.stringify(professions));
-      return new Response('Professions updated', { status: 200 });
-    }
-
-    return new Response('Not Found', { status: 404 });
   }
 };
