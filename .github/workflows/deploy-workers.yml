@@ -26,21 +26,14 @@ jobs:
 
       - name: Deploy Job Searcher Worker
         working-directory: workers/job-searcher
-        run: |
-          npx wrangler secret delete API_KEY || true
-          echo "${{ secrets.API_KEY }}" | npx wrangler secret put API_KEY
-          npx wrangler deploy index.ts
+        run: npx wrangler deploy index.ts --var API_KEY:${{ secrets.API_KEY }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy Telegram Bot Worker
         working-directory: workers/telegram-bot
-        run: |
-          npx wrangler secret delete TELEGRAM_BOT_TOKEN || true
-          echo "${{ secrets.TELEGRAM_BOT_TOKEN }}" | npx wrangler secret put TELEGRAM_BOT_TOKEN
-          npx wrangler deploy index.ts
+        run: npx wrangler deploy index.ts --var TELEGRAM_BOT_TOKEN:${{ secrets.TELEGRAM_BOT_TOKEN }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }} 
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }} 

@@ -15,7 +15,7 @@ TELEGRAM_BOT_TOKEN = ""
 [env.production]
 name = "telegram-bot-worker"
 route = ""
-
+vars = { TELEGRAM_BOT_TOKEN = "" }
 [[env.production.kv_namespaces]]
 binding = "JOB_KV"
 id = "90356d9790fa43aab3fe46f7d4cc2006" #

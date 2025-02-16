@@ -15,6 +15,7 @@ API_KEY = ""
 [env.production]
 name = "job-searcher-worker"
 route = ""
+vars = { API_KEY = "" }
 
 [[env.production.kv_namespaces]]
 binding = "JOB_KV"
