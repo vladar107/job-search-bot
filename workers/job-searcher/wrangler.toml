@@ -10,6 +10,9 @@ kv_namespaces = [
 name = "job-searcher-worker"
 route = ""
 
+[vars]
+API_KEY = ""
+
 [[env.production.kv_namespaces]]
 binding = "JOB_KV"
 id = "90356d9790fa43aab3fe46f7d4cc2006"

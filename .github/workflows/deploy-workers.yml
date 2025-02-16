@@ -24,14 +24,17 @@ jobs:
         run: npm install
 
       - name: Deploy Job Searcher Worker
-        run: npx wrangler deploy workers/job-searcher/index.ts
+        run: |
+          echo "${{ secrets.API_KEY }}" | npx wrangler secret put API_KEY
+          npx wrangler deploy workers/job-searcher/index.ts
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          API_KEY: ${{ secrets.API_KEY }}
 
       - name: Deploy Telegram Bot Worker
-        run: npx wrangler deploy workers/telegram-bot/index.ts
+        run: |
+          echo "${{ secrets.TELEGRAM_BOT_TOKEN }}" | npx wrangler secret put TELEGRAM_BOT_TOKEN
+          npx wrangler deploy workers/telegram-bot/index.ts
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
