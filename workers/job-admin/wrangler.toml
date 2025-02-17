@@ -1,11 +1,22 @@
 name = "job-admin-worker"
 main = "index.ts"
 compatibility_date = "2025-02-16"
-send_metrics = true
 
 kv_namespaces = [
-  { binding = "JOB_KV", id = "" }
+  { binding = "JOB_KV", id = "90356d9790fa43aab3fe46f7d4cc2006" }
 ]
 
+[observability.logs]
+enabled = true
+
 [vars]
-API_KEY = "" 
+API_KEY = ""
+
+[env.production]
+name = "job-searcher-worker"
+route = ""
+vars = { API_KEY = "" }
+
+[[env.production.kv_namespaces]]
+binding = "JOB_KV"
+id = "90356d9790fa43aab3fe46f7d4cc2006"
