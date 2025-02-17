@@ -1,5 +1,5 @@
 name = "job-searcher-worker"
-main = "workers/job-searcher/index.ts"
+main = "index.ts"
 compatibility_date = "2025-02-16"
 
 kv_namespaces = [

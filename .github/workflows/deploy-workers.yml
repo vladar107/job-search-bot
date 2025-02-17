@@ -24,16 +24,27 @@ jobs:
         working-directory: workers
         run: npm install
 
+      - name: Build shared types
+        working-directory: workers/shared
+        run: npm run build
+
       - name: Deploy Job Searcher Worker
         working-directory: workers/job-searcher
-        run: npx wrangler deploy index.ts --var API_KEY:${{ secrets.API_KEY }}
+        run: npx wrangler deploy --var API_KEY:${{ secrets.API_KEY }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy Telegram Bot Worker
         working-directory: workers/telegram-bot
-        run: npx wrangler deploy index.ts --var TELEGRAM_BOT_TOKEN:${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: npx wrangler deploy --var TELEGRAM_BOT_TOKEN:${{ secrets.TELEGRAM_BOT_TOKEN }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy Job Admin Worker
+        working-directory: workers/job-admin
+        run: npx wrangler deploy --var API_KEY:${{ secrets.API_KEY }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }} 

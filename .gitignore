@@ -133,3 +133,5 @@ dist
 
 *.local.yaml
 *.local.yml
+
+.wrangler/

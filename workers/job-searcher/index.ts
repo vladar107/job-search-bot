@@ -1,70 +1,37 @@
 import { KVNamespace } from '@cloudflare/workers-types';
 import { ExecutionContext } from '@cloudflare/workers-types';
+import { Env, Job, JobSource, Profession, LastCheck } from '../shared/types';
+import { authenticateRequest, errorResponse } from '../shared/utils';
 
-interface Env {
-  JOB_KV: KVNamespace;
-  API_KEY: string; 
-}
+const NETHERLANDS_VARIATIONS = [
+  'netherlands',
+  'nederland',
+  'nl',
+  'holland',
+  'dutch',
+  'amsterdam',
+  'rotterdam',
+  'den haag',
+  'the hague',
+  'utrecht',
+  'eindhoven',
+  'remote netherlands',
+  'remote nl',
+  'hybrid netherlands',
+  'hybrid nl'
+];
 
-interface JobSource {
-  id: string;
-  name: string;
-  type: 'greenhouse' | 'lever' | 'workday';  
-  baseUrl: string;
-  companyId: string;
-}
-
-interface Profession {
-  id: string;
-  name: string;
-  keywords: string[];
-}
-
-interface Job {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  url: string;
-  posted_at: string;
-  source: string;
-  profession: string | null;
-}
-
-interface LastCheck {
-  lastJobId: string;
-  lastCheckTime: string;
+function isNetherlands(location: string): boolean {
+  const normalizedLocation = location.toLowerCase();
+  return NETHERLANDS_VARIATIONS.some(variant => 
+    normalizedLocation.includes(variant)
+  );
 }
 
 // Helper functions for KV operations
 async function getSources(kv: KVNamespace): Promise<JobSource[]> {
-  console.log({
-    level: 'info',
-    message: 'Fetching sources from KV',
-    timestamp: new Date().toISOString()
-  });
-
   const sourcesData = await kv.get('config:sources');
-  if (!sourcesData) {
-    console.log({
-      level: 'warn',
-      message: 'No sources found in KV',
-      timestamp: new Date().toISOString()
-    });
-    return [];
-  }
-
-  const data = JSON.parse(sourcesData);
-  const sources = data.sources; // Extract the sources array from the wrapper object
-
-  console.log({
-    level: 'info',
-    message: 'Sources fetched successfully',
-    sourcesCount: sources.length,
-    timestamp: new Date().toISOString()
-  });
-
-  return sources;
+  return sourcesData ? JSON.parse(sourcesData) : [];
 }
 
 async function getProfessions(kv: KVNamespace): Promise<Profession[]> {
@@ -94,22 +61,21 @@ async function fetchGreenhouseJobs(source: JobSource, lastJobId: string | null):
     timestamp: new Date().toISOString()
   });
 
-  // If no lastJobId, get today's jobs
-  const today = new Date().toISOString().split('T')[0];
-  const updatedAfter = lastJobId ? undefined : today;
-  
-  const url = new URL(`${source.baseUrl}/boards/${source.companyId}/jobs`);
-  if (updatedAfter) {
-    url.searchParams.append('updated_after', updatedAfter);
-  }
+  const url = new URL(`https://boards-api.greenhouse.io/v1/boards/${source.companyId}/jobs`);
+  console.log({
+    level: 'info',
+    message: 'Greenhouse API URL',
+    url: url.toString(),
+    timestamp: new Date().toISOString()
+  });
   
   const response = await fetch(url.toString());
-  const jobs = await response.json();
+  const data = await response.json() as { jobs: any[] };
   
   let foundLastJob = false;
   const newJobs: Job[] = [];
   
-  for (const job of jobs) {
+  for (const job of data.jobs) {
     // If we have a lastJobId and haven't found it yet, keep looking
     if (lastJobId) {
       if (job.id === lastJobId) {
@@ -153,9 +119,9 @@ async function fetchLeverJobs(source: JobSource): Promise<Job[]> {
   });
 
   const response = await fetch(`${source.baseUrl}/v0/postings/${source.companyId}`);
-  const jobs = await response.json();
+  const data = await response.json() as any[];
   
-  return jobs.map((job: any) => ({
+  return data.map((job) => ({
     id: `${source.id}-${job.id}`,
     title: job.text,
     company: source.name,
@@ -192,152 +158,14 @@ function matchProfession(title: string, professions: Profession[]): string | nul
   return null;
 }
 
-// Add authentication middleware
-function authenticateRequest(request: Request, env: Env): boolean {
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return false;
-  }
-  const token = authHeader.split('Bearer ')[1];
-  return token === env.API_KEY;
-}
-
-// Helper function for error responses
-function errorResponse(message: string, status: number = 400) {
-  console.log({
-    level: 'error',
-    message,
-    status,
-    timestamp: new Date().toISOString()
-  });
-  
-  return new Response(
-    JSON.stringify({ 
-      error: message,
-      status 
-    }), 
-    { 
-      status,
-      headers: { 'Content-Type': 'application/json' }
-    }
-  );
-}
-
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
-    const requestId = crypto.randomUUID();
-    console.log({
-      level: 'info',
-      message: 'Request received',
-      requestId,
-      method: request.method,
-      path: new URL(request.url).pathname,
-      timestamp: new Date().toISOString()
-    });
-
-    // Authenticate all requests first
     if (!authenticateRequest(request, env)) {
-      console.log({
-        level: 'warn',
-        message: 'Authentication failed',
-        requestId,
-        timestamp: new Date().toISOString()
-      });
       return errorResponse('Unauthorized', 401);
     }
 
     try {
       const url = new URL(request.url);
-      
-      // Admin endpoint to configure professions
-      if (url.pathname === '/admin/professions' && request.method === 'PUT') {
-        try {
-          const body = await request.json();
-          
-          if (!body.professions || !Array.isArray(body.professions)) {
-            return errorResponse('Invalid request body: professions array is required');
-          }
-
-          console.log({
-            level: 'info',
-            message: 'Updating professions',
-            requestId,
-            professionsCount: body.professions.length,
-            timestamp: new Date().toISOString()
-          });
-
-          await env.JOB_KV.put('config:professions', JSON.stringify(body.professions));
-          
-          console.log({
-            level: 'info',
-            message: 'Professions updated successfully',
-            requestId,
-            timestamp: new Date().toISOString()
-          });
-
-          return new Response(
-            JSON.stringify({ message: 'Professions updated successfully' }), 
-            { 
-              status: 200,
-              headers: { 'Content-Type': 'application/json' }
-            }
-          );
-        } catch (e) {
-          console.log({
-            level: 'error',
-            message: 'Error parsing profession data',
-            requestId,
-            error: e.message,
-            timestamp: new Date().toISOString()
-          });
-          return errorResponse('Invalid JSON in request body');
-        }
-      }
-
-      // Admin endpoint to configure sources
-      if (url.pathname === '/admin/sources' && request.method === 'PUT') {
-        try {
-          const body = await request.json();
-          
-          console.log({
-            level: 'info',
-            message: 'Updating sources',
-            requestId,
-            sourcesCount: body.sources?.length,
-            timestamp: new Date().toISOString()
-          });
-
-          if (!body.sources || !Array.isArray(body.sources)) {
-            return errorResponse('Invalid request body: sources array is required');
-          }
-
-          await env.JOB_KV.put('config:sources', JSON.stringify(body.sources));
-          
-          console.log({
-            level: 'info',
-            message: 'Sources updated successfully',
-            requestId,
-            timestamp: new Date().toISOString()
-          });
-
-          return new Response(
-            JSON.stringify({ message: 'Sources updated successfully' }), 
-            { 
-              status: 200,
-              headers: { 'Content-Type': 'application/json' }
-            }
-          );
-        } catch (e) {
-          console.log({
-            level: 'error',
-            message: 'Error parsing source data',
-            requestId,
-            error: e.message,
-            timestamp: new Date().toISOString()
-          });
-          return errorResponse('Invalid JSON in request body');
-        }
-      }
 
       // Endpoint to trigger job search
       if (url.pathname === '/search' && request.method === 'POST') {
@@ -345,7 +173,7 @@ export default {
           console.log({
             level: 'info',
             message: 'Starting job search',
-            requestId,
+            requestId: ctx.requestId,
             timestamp: new Date().toISOString()
           });
 
@@ -363,7 +191,7 @@ export default {
               console.log({
                 level: 'info',
                 message: 'Fetching jobs for source',
-                requestId,
+                requestId: ctx.requestId,
                 source: source.id,
                 lastJobId,
                 timestamp: new Date().toISOString()
@@ -377,7 +205,7 @@ export default {
                 await updateLastCheck(env.JOB_KV, source.id, newestJob.id.split('-')[1]);
                 
                 for (const job of jobs) {
-                  if (job.location.toLowerCase().includes('netherlands')) {
+                  if (isNetherlands(job.location)) {
                     job.profession = matchProfession(job.title, professions);
                     if (job.profession) {
                       const jobKey = `job:${job.id}`;
@@ -387,7 +215,7 @@ export default {
                         totalJobsStored++;
                         await env.JOB_KV.put(jobKey, JSON.stringify(job));
                         await env.JOB_KV.put(`new:${jobKey}`, JSON.stringify(job), {
-                          expirationTtl: 60 * 60 * 2
+                          expirationTtl: 60 * 60 * 20 * 24
                         });
                       }
                     }
@@ -398,7 +226,7 @@ export default {
               console.log({
                 level: 'error',
                 message: 'Error processing source',
-                requestId,
+                requestId: ctx.requestId,
                 source: source.id,
                 error: error.message,
                 timestamp: new Date().toISOString()
@@ -409,7 +237,7 @@ export default {
           console.log({
             level: 'info',
             message: 'Job search completed',
-            requestId,
+            requestId: ctx.requestId,
             totalJobsFound,
             totalJobsStored,
             timestamp: new Date().toISOString()
@@ -430,7 +258,7 @@ export default {
           console.log({
             level: 'error',
             message: 'Search error',
-            requestId,
+            requestId: ctx.requestId,
             error: error.message,
             timestamp: new Date().toISOString()
           });
@@ -460,8 +288,8 @@ export default {
       console.log({
         level: 'error',
         message: 'Server error',
-        requestId,
-        error: error.message,
+        requestId: ctx.requestId,
+        error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString()
       });
       return errorResponse('Internal Server Error', 500);

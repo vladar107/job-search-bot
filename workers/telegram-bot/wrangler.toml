@@ -1,5 +1,5 @@
 name = "telegram-bot-worker"
-main = "workers/telegram-bot/index.ts"
+main = "index.ts"
 compatibility_date = "2025-02-16"
 
 kv_namespaces = [

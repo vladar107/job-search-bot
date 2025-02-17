@@ -1,0 +1,11 @@
+name = "job-admin-worker"
+main = "index.ts"
+compatibility_date = "2025-02-16"
+send_metrics = true
+
+kv_namespaces = [
+  { binding = "JOB_KV", id = "" }
+]
+
+[vars]
+API_KEY = "" 

@@ -1,14 +1,10 @@
 import { KVNamespace } from '@cloudflare/workers-types';
 import { ExecutionContext } from '@cloudflare/workers-types';
+import { Job, TelegramUser, TelegramUpdate } from '../shared/types';
 
 interface Env {
   JOB_KV: KVNamespace;
   TELEGRAM_BOT_TOKEN: string;
-}
-
-interface TelegramUser {
-  id: number;
-  professions: string[];
 }
 
 export default {
@@ -17,7 +13,7 @@ export default {
       return new Response('Method not allowed', { status: 405 });
     }
 
-    const update = await request.json();
+    const update = await request.json() as TelegramUpdate;
     
     if (!update.message) {
       return new Response('OK');
@@ -28,8 +24,8 @@ export default {
 
     if (text === '/check') {
       // Fetch new jobs from the job searcher worker
-      const jobResponse = await fetch(`${request.url.origin}/new-jobs`);
-      const newJobs = await jobResponse.json();
+      const jobResponse = await fetch(new URL('/new-jobs', request.url));
+      const newJobs = await jobResponse.json() as Job[];
       
       // Get user preferences
       const userData = await env.JOB_KV.get(`user:${chatId}`);
@@ -37,7 +33,7 @@ export default {
       
       // Filter and send notifications
       const relevantJobs = newJobs.filter(job => 
-        user.professions.includes(job.profession)
+        user.professions.includes(job.profession!)
       );
 
       for (const job of relevantJobs) {
