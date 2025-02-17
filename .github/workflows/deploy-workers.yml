@@ -24,10 +24,6 @@ jobs:
         working-directory: workers
         run: npm install
 
-      - name: Build shared types
-        working-directory: workers/shared
-        run: npm run build
-
       - name: Deploy Job Searcher Worker
         working-directory: workers/job-searcher
         run: npx wrangler deploy --var API_KEY:${{ secrets.API_KEY }}
