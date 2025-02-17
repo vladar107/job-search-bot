@@ -31,7 +31,9 @@ function isNetherlands(location: string): boolean {
 // Helper functions for KV operations
 async function getSources(kv: KVNamespace): Promise<JobSource[]> {
   const sourcesData = await kv.get('config:sources');
-  return sourcesData ? JSON.parse(sourcesData) : [];
+  if (!sourcesData) return [];
+  const parsed = JSON.parse(sourcesData);
+  return parsed.sources || [];  // Extract the sources array from the object
 }
 
 async function getProfessions(kv: KVNamespace): Promise<Profession[]> {
