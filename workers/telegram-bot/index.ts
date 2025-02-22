@@ -13,6 +13,22 @@ export default {
       return new Response('Method not allowed', { status: 405 });
     }
 
+    const url = new URL(request.url);
+
+    if (url.pathname === '/set-profession') {
+      const { chatId, profession } = await request.json() as { chatId: number, profession: string };
+
+      const userData = await env.JOB_KV.get(`user:${chatId}`);
+      const user: TelegramUser = userData ? JSON.parse(userData) : { id: chatId, professions: [] };
+
+      if (!user.professions.includes(profession)) {
+        user.professions.push(profession);
+        await env.JOB_KV.put(`user:${chatId}`, JSON.stringify(user));
+      }
+
+      return new Response('Profession set successfully', { status: 200 });
+    }
+
     const update = await request.json() as TelegramUpdate;
     
     if (!update.message) {
