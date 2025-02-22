@@ -99,7 +99,7 @@ export default {
                     },
                 });
 
-                console.log('Job searcher response:', await jobSearcherResponse.json());
+                console.log('Job searcher response:', await jobSearcherResponse.text());
 
                 if (!jobSearcherResponse.ok) {
                     return new Response('Error calling job-searcher', {status: 500});
