@@ -33,7 +33,7 @@ export default {
         - /professions: Show your associated professions
               `.trim();
 
-                await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -42,6 +42,12 @@ export default {
                         parse_mode: 'HTML',
                     }),
                 });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error sending message via Telegram API:', errorText);
+                    return new Response('Error sending message via Telegram API', { status: response.status });
+                }
 
                 return new Response('OK');
             }
