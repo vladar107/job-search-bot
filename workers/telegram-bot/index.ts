@@ -19,7 +19,7 @@ export default {
             console.log('Received request body:', update);
 
             try {
-                update = await request.json() as TelegramUpdate;
+                update = update as TelegramUpdate;
                 console.log('Parsed update:', update);
             } catch (error) {
                 console.error('Error parsing request JSON:', error);
