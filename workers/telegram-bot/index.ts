@@ -14,6 +14,9 @@ export default {
                 return new Response('Method not allowed', {status: 405});
             }
 
+            console.log('Received request:', request);
+            console.log('Received request body:', await request.json());
+
             let update;
             try {
                 update = await request.json() as TelegramUpdate;
