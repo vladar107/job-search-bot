@@ -1,6 +1,7 @@
 import {KVNamespace} from '@cloudflare/workers-types';
 import {ExecutionContext} from '@cloudflare/workers-types';
 import {TelegramUser, TelegramUpdate, Job} from '../shared/types';
+import {jsonStringify} from "@pulumi/pulumi";
 
 interface Env {
     JOB_KV: KVNamespace;
@@ -14,12 +15,9 @@ export default {
                 return new Response('Method not allowed', {status: 405});
             }
 
-            let update = await request.json()
-
-            console.log('Received request body:', update);
-
+            let update;
             try {
-                update = update as TelegramUpdate;
+                update = await request.json() as TelegramUpdate;
                 console.log('Parsed update:', update);
             } catch (error) {
                 console.error('Error parsing request JSON:', error);
@@ -93,10 +91,12 @@ export default {
             }
 
             if (text === '/check') {
+                console.log('Checking for new jobs...');
                 const jobSearcherResponse = await fetch(`https://job-searcher-worker.vladar107.workers.dev/search`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                 });
+                console.log('Job searcher response:', jsonStringify(jobSearcherResponse));
 
                 if (!jobSearcherResponse.ok) {
                     return new Response('Error calling job-searcher', {status: jobSearcherResponse.status});
