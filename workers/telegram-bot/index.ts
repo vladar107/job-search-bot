@@ -1,7 +1,6 @@
 import {KVNamespace} from '@cloudflare/workers-types';
 import {ExecutionContext} from '@cloudflare/workers-types';
 import {TelegramUser, TelegramUpdate, Job} from '../shared/types';
-import {jsonStringify} from "@pulumi/pulumi";
 
 interface Env {
     JOB_KV: KVNamespace;
@@ -96,7 +95,7 @@ export default {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                 });
-                console.log('Job searcher response:', jsonStringify(jobSearcherResponse));
+                console.log('Job searcher response received:');
 
                 if (!jobSearcherResponse.ok) {
                     return new Response('Error calling job-searcher', {status: jobSearcherResponse.status});
