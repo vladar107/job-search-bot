@@ -14,8 +14,14 @@ export default {
                 return new Response('Method not allowed', {status: 405});
             }
 
-            const url = new URL(request.url);
-            const update = await request.json() as TelegramUpdate;
+            let update;
+            try {
+                update = await request.json() as TelegramUpdate;
+                console.log('Parsed update:', update);
+            } catch (error) {
+                console.error('Error parsing request JSON:', error);
+                return new Response('Invalid JSON in request body', { status: 400 });
+            }
 
             if (!update.message) {
                 return new Response('OK');
@@ -33,20 +39,27 @@ export default {
         - /professions: Show your associated professions
               `.trim();
 
-                const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        chat_id: chatId,
-                        text: message,
-                        parse_mode: 'HTML',
-                    }),
-                });
+                try {
+                    const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            chat_id: chatId,
+                            text: message,
+                            parse_mode: 'HTML',
+                        }),
+                    });
 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('Error sending message via Telegram API:', errorText);
-                    return new Response('Error sending message via Telegram API', { status: response.status });
+                    const responseData = await response.text();
+                    console.log('Telegram API response:', responseData);
+
+                    if (!response.ok) {
+                        console.error('Error response from Telegram:', responseData);
+                        return new Response(`Error sending message: ${responseData}`, { status: response.status });
+                    }
+                } catch (error) {
+                    console.error('Error in Telegram API call:', error);
+                    return new Response('Error calling Telegram API', { status: 500 });
                 }
 
                 return new Response('OK');
