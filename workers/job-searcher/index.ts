@@ -268,23 +268,6 @@ export default {
         }
       }
 
-      // Endpoint to get new jobs
-      if (url.pathname === '/new-jobs' && request.method === 'GET') {
-        const newJobs: Job[] = [];
-        const kvList = await env.JOB_KV.list({ prefix: 'new:' });
-        
-        for (const key of kvList.keys) {
-          const jobData = await env.JOB_KV.get(key.name);
-          if (jobData) {
-            newJobs.push(JSON.parse(jobData));
-          }
-        }
-
-        return new Response(JSON.stringify(newJobs), {
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
       return errorResponse('Not Found', 404);
     } catch (error) {
       console.log({

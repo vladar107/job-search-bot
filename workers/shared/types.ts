@@ -4,7 +4,7 @@ export interface Job {
   company: string;
   location: string;
   url: string;
-  posted_at: string;
+  posted_at: Date;
   source: string;
   profession: string | null;
 }
@@ -30,6 +30,7 @@ export interface LastCheck {
 
 export interface TelegramUser {
   id: number;
+  lastCheckTime: Date;
   professions: string[];
 }
 
