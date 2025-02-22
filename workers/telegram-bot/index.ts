@@ -5,6 +5,7 @@ import {TelegramUser, TelegramUpdate, Job} from '../shared/types';
 interface Env {
     JOB_KV: KVNamespace;
     TELEGRAM_BOT_TOKEN: string;
+    API_KEY: string;
 }
 
 export default {
@@ -92,13 +93,16 @@ export default {
             if (text === '/check') {
                 const jobSearcherResponse = await fetch(`https://job-searcher-worker.vladar107.workers.dev/search`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${env.API_KEY}`
+                    },
                 });
 
                 console.log('Job searcher response:', jobSearcherResponse.ok);
 
                 if (!jobSearcherResponse.ok) {
-                    return new Response('Error calling job-searcher', {status: jobSearcherResponse.status});
+                    return new Response('Error calling job-searcher', {status: 500});
                 }
 
                 console.log(`fetching new jobs for user ${chatId}`);
