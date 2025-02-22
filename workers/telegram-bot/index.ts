@@ -90,17 +90,18 @@ export default {
             }
 
             if (text === '/check') {
-                console.log('Checking for new jobs...');
                 const jobSearcherResponse = await fetch(`https://job-searcher-worker.vladar107.workers.dev/search`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                 });
-                console.log('Job searcher response received:');
+
+                console.log('Job searcher response:', jobSearcherResponse.ok);
 
                 if (!jobSearcherResponse.ok) {
                     return new Response('Error calling job-searcher', {status: jobSearcherResponse.status});
                 }
 
+                console.log(`fetching new jobs for user ${chatId}`);
                 // Fetch new jobs from KV store newer than last check
                 const userData = await env.JOB_KV.get(`user:${chatId}`);
                 const user: TelegramUser = userData ? JSON.parse(userData) : {
@@ -109,9 +110,12 @@ export default {
                     professions: []
                 };
 
+                console.log('user:', user);
+
                 const newJobs: Job[] = [];
                 const keys = await env.JOB_KV.list({prefix: 'new:'});
 
+                console.log('keys:', keys.keys);
                 for (const {name} of keys.keys) {
                     const job = await env.JOB_KV.get(name);
                     if (job && JSON.parse(job).posted_at > user.lastCheckTime) {
@@ -119,9 +123,12 @@ export default {
                     }
                 }
 
+                console.log('new jobs:', newJobs);
                 const relevantJobs = newJobs.filter(job =>
                     user.professions.includes(job.profession!)
                 );
+
+                console.log('relevant jobs:', relevantJobs);
 
                 for (const job of relevantJobs) {
                     const message = `
@@ -144,6 +151,8 @@ export default {
                         }),
                     });
                 }
+
+                console.log('updating last check time');
 
                 return new Response('OK');
             }
