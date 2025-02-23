@@ -36,7 +36,7 @@ export default {
         Welcome to Job Search Bot! Here are the available commands:
         - /start: Show this message
         - /check: Check for new jobs
-        - /set-profession: Set your profession
+        - /set: Set your profession
         - /professions: Show your associated professions
               `.trim();
 
@@ -146,7 +146,7 @@ export default {
                 return new Response('OK');
             }
 
-            if (url.pathname === '/setProfession') {
+            if (url.pathname === '/set') {
                 const {chatId, profession} = await request.json() as {
                     chatId: number,
                     profession: string
