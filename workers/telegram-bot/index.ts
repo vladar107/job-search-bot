@@ -164,10 +164,12 @@ export default {
             }
 
             if (text === '/set') {
-                const {chatId, profession} = await request.json() as {
+                let {chatId, profession} = update as {
                     chatId: number,
                     profession: string
                 };
+
+                profession = profession || 'swe'
 
                 const userData = await env.JOB_KV.get(`user:${chatId}`);
                 const user: TelegramUser = userData ? JSON.parse(userData) : {
