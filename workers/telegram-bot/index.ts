@@ -90,6 +90,23 @@ export default {
                 return new Response('OK');
             }
 
+            //list all professions
+            if (text === 'all') {
+                const professions = await env.JOB_KV.list({prefix: 'profession:'});
+                const professionNames = professions.keys.map(key => key.name.split(':')[1]);
+                const message = `Available professions:\n- ${professionNames.join('\n- ')}`;
+
+                await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: message,
+                        parse_mode: 'HTML',
+                    }),
+                });
+            }
+
             if (text === '/check') {
                 // Fetch new jobs from KV store newer than last check
                 const userData = await env.JOB_KV.get(`user:${chatId}`);
@@ -146,7 +163,7 @@ export default {
                 return new Response('OK');
             }
 
-            if (url.pathname === '/set') {
+            if (text === '/set') {
                 const {chatId, profession} = await request.json() as {
                     chatId: number,
                     profession: string
