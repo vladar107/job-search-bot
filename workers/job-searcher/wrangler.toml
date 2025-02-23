@@ -18,7 +18,7 @@ route = ""
 vars = { API_KEY = "" }
 
 [triggers]
-cron = "*/15 * * * *" # every 15 minutes
+crons = ["*/15 * * * *"]
 
 [[env.production.kv_namespaces]]
 binding = "JOB_KV"
