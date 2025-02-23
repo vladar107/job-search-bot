@@ -91,21 +91,6 @@ export default {
             }
 
             if (text === '/check') {
-                const jobSearcherResponse = await fetch(`https://job-searcher-worker.vladar107.workers.dev/search`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${env.API_KEY}`
-                    },
-                });
-
-                console.log('Job searcher response:', await jobSearcherResponse.text());
-
-                if (!jobSearcherResponse.ok) {
-                    return new Response('Error calling job-searcher', {status: 500});
-                }
-
-                console.log(`fetching new jobs for user ${chatId}`);
                 // Fetch new jobs from KV store newer than last check
                 const userData = await env.JOB_KV.get(`user:${chatId}`);
                 const user: TelegramUser = userData ? JSON.parse(userData) : {
