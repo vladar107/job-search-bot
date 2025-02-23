@@ -146,7 +146,7 @@ export default {
                 return new Response('OK');
             }
 
-            if (url.pathname === '/set-profession') {
+            if (url.pathname === '/setProfession') {
                 const {chatId, profession} = await request.json() as {
                     chatId: number,
                     profession: string

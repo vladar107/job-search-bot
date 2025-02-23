@@ -17,6 +17,9 @@ name = "job-searcher-worker"
 route = ""
 vars = { API_KEY = "" }
 
+[triggers]
+cron = "*/15 * * * *" # every 15 minutes
+
 [[env.production.kv_namespaces]]
 binding = "JOB_KV"
 id = "90356d9790fa43aab3fe46f7d4cc2006"
